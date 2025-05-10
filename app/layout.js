@@ -1,18 +1,9 @@
 import React from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import dynamic from 'next/dynamic';
+import { ThemeProvider } from '../components/ThemeProvider';
 import AppDownloadBanner from './components/AppDownloadBanner';
-
-// Dynamically import ThemeProvider with error handling
-const ThemeProvider = dynamic(
-  () => import('@/components/ThemeProvider').then(mod => ({ default: mod.ThemeProvider }))
-  .catch(() => {
-    console.warn('Could not load ThemeProvider, using fallback');
-    return { default: ({ children }) => <>{children}</> };
-  }),
-  { ssr: false, loading: () => <div>Loading theme...</div> }
-);
+import AnalyticsWrapper from './components/AnalyticsWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,17 +27,14 @@ export default function RootLayout({ children }) {
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
-            {children}
-            <AppDownloadBanner />
-          </main>
-        </ThemeProvider>
+        <AnalyticsWrapper>
+          <ThemeProvider>
+            <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
+              {children}
+              <AppDownloadBanner />
+            </main>
+          </ThemeProvider>
+        </AnalyticsWrapper>
       </body>
     </html>
   );

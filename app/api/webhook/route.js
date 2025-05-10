@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { walletService } from '@/app/services/WalletService';
+import { logError } from '../../lib/errorLogging';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51Abc123DefGhi456Jkl789Mno012Pqr345StU678');
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder_secret_key';
@@ -116,9 +117,16 @@ export async function POST(request) {
     
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error(`Error handling webhook: ${error.message}`);
+    // Log the error with context
+    logError(error, 'Stripe Webhook Handler', {
+      stripeEvent: error.stripeEvent || null,
+      webhookType: error.type || 'unknown',
+    });
+    
+    // Return error response
+    console.error('Webhook error:', error.message);
     return NextResponse.json(
-      { error: 'Error handling webhook' },
+      { error: 'Webhook handler failed' },
       { status: 500 }
     );
   }
