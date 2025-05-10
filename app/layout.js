@@ -4,13 +4,26 @@ import './globals.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppDownloadBanner from './components/AppDownloadBanner';
 import AnalyticsWrapper from './components/AnalyticsWrapper';
+import { dynamicConfig } from './config';
 
 const inter = Inter({ subsets: ['latin'] });
+
+// Apply dynamic config settings to force server-side rendering
+export const dynamic = dynamicConfig.dynamic;
+export const revalidate = dynamicConfig.revalidate;
+export const fetchCache = dynamicConfig.fetchCache;
+export const runtime = dynamicConfig.runtime;
+
+// Moving viewport to its own export per Next.js warnings
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata = {
   title: 'NOVED Labels - Simple Shipping Solution',
   description: 'Generate shipping labels quickly and easily with discounted rates',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },

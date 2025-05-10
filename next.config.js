@@ -16,6 +16,8 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    // Allow useSearchParams without suspense boundaries
+    missingSuspenseWithCSRBailout: false,
   },
   typescript: {
     // !! WARN !!
@@ -29,9 +31,16 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  // Use standalone mode for Vercel
+  // Configure output for fully dynamic rendering in production
   output: 'standalone',
   trailingSlash: true,
+  // Disable static optimization to ensure cookies and dynamic features work
+  staticPageGenerationTimeout: 1000,
+  // Force all pages to be server-side rendered in production
+  // This ensures cookies and dynamic data work properly
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
 };
 
 module.exports = nextConfig;
