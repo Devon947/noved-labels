@@ -1,8 +1,18 @@
 import React from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from "../components/ThemeProvider";
+import dynamic from 'next/dynamic';
 import AppDownloadBanner from './components/AppDownloadBanner';
+
+// Dynamically import ThemeProvider with error handling
+const ThemeProvider = dynamic(
+  () => import('@/components/ThemeProvider').then(mod => ({ default: mod.ThemeProvider }))
+  .catch(() => {
+    console.warn('Could not load ThemeProvider, using fallback');
+    return { default: ({ children }) => <>{children}</> };
+  }),
+  { ssr: false, loading: () => <div>Loading theme...</div> }
+);
 
 const inter = Inter({ subsets: ['latin'] });
 
