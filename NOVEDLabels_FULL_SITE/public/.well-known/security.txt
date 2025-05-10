@@ -1,0 +1,6 @@
+Contact: mailto:security@novedlabels.com
+Expires: 2026-01-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://novedlabels.com/.well-known/security.txt
+Policy: https://novedlabels.com/security-policy
+Hiring: https://novedlabels.com/careers 

@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Plus, DollarSign, AlertTriangle } from 'lucide-react';
+import { Wallet, Plus, DollarSign, AlertTriangle, CreditCard, Bitcoin } from 'lucide-react';
 import { walletService } from '@/app/services/WalletService';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 export default function WalletCard() {
   const [walletData, setWalletData] = useState(null);
@@ -14,6 +16,8 @@ export default function WalletCard() {
   const [depositAmount, setDepositAmount] = useState('');
   const [isDepositing, setIsDepositing] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   
   useEffect(() => {
     async function loadWalletData() {
@@ -51,8 +55,15 @@ export default function WalletCard() {
     setError(null);
     
     try {
-      // Create a Stripe checkout session for the deposit
-      const response = await fetch('/api/wallet/deposit', {
+      let endpoint = '/api/wallet/deposit';
+      
+      // Use the crypto endpoint if crypto payment method is selected
+      if (paymentMethod === 'crypto') {
+        endpoint = '/api/crypto-wallet-deposit';
+      }
+      
+      // Create checkout session for the deposit
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +77,7 @@ export default function WalletCard() {
       const data = await response.json();
       
       if (data.url) {
-        // Redirect to Stripe checkout
+        // Redirect to checkout
         window.location.href = data.url;
       } else {
         throw new Error(data.error || 'Failed to process deposit');
@@ -138,28 +149,89 @@ export default function WalletCard() {
           )}
           
           <div className="w-full">
-            <div className="flex gap-2 mt-2">
-              <Input
-                type="text"
-                placeholder="Amount"
-                value={depositAmount}
-                onChange={handleDepositChange}
-                className="bg-gray-700 border-gray-600"
-                disabled={isDepositing}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDeposit}
-                disabled={isDepositing || !depositAmount}
-                className="whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add Funds
-              </Button>
-            </div>
-            
-            {error && (
-              <p className="text-red-400 text-sm mt-2">{error}</p>
+            {!showPaymentOptions ? (
+              <>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    type="text"
+                    placeholder="Amount"
+                    value={depositAmount}
+                    onChange={handleDepositChange}
+                    className="bg-gray-700 border-gray-600"
+                    disabled={isDepositing}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPaymentOptions(true)}
+                    disabled={isDepositing || !depositAmount}
+                    className="whitespace-nowrap"
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Funds
+                  </Button>
+                </div>
+                
+                {error && (
+                  <p className="text-red-400 text-sm mt-2">{error}</p>
+                )}
+              </>
+            ) : (
+              <div className="mt-2">
+                <div className="bg-gray-800/60 p-3 rounded-lg mb-3">
+                  <p className="text-sm text-gray-300 mb-2">Select payment method:</p>
+                  <RadioGroup 
+                    defaultValue="card" 
+                    value={paymentMethod}
+                    onValueChange={setPaymentMethod}
+                    className="flex flex-col space-y-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="card" id="wallet-card" />
+                      <Label htmlFor="wallet-card" className="flex items-center cursor-pointer">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        <span>Credit Card</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="crypto" id="wallet-crypto" />
+                      <Label htmlFor="wallet-crypto" className="flex items-center cursor-pointer">
+                        <Bitcoin className="w-4 h-4 mr-2" />
+                        <span>Cryptocurrency</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {paymentMethod === 'crypto' && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      We accept BTC, ETH, USDC, and other major cryptocurrencies
+                    </p>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPaymentOptions(false)}
+                    className="flex-1"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleDeposit}
+                    disabled={isDepositing}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    Continue
+                  </Button>
+                </div>
+                
+                {error && (
+                  <p className="text-red-400 text-sm mt-2">{error}</p>
+                )}
+              </div>
             )}
           </div>
         </div>

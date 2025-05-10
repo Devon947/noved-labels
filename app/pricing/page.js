@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Check, X, ArrowRight, CreditCard, Sparkles, Shield, Package, Calculator, Info, CalculatorIcon } from 'lucide-react';
+import { Check, X, ArrowRight, CreditCard, Sparkles, Shield, Package, Calculator, Info, CalculatorIcon, Bitcoin, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -13,6 +13,8 @@ import { PRICING, calculatePlanComparison } from '@/lib/pricing';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import analytics from '@/lib/analytics';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -24,6 +26,7 @@ export default function PricingPage() {
   const [averageRate, setAverageRate] = useState(8.00);
   const [calculatedComparison, setCalculatedComparison] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [paymentMethod, setPaymentMethod] = useState('card');
   
   // Track page view when component mounts
   useEffect(() => {
@@ -228,6 +231,55 @@ export default function PricingPage() {
 
   // Calculate yearly price with 2 months free
   const yearlyPrice = PRICING.PREMIUM.MONTHLY_FEE * 10; // 12 months - 2 months free = 10 months
+
+  const handleCryptoCheckout = async () => {
+    try {
+      // Track crypto checkout attempt
+      analytics.trackConversion('start_crypto_checkout', {
+        from: userPlan,
+        to: 'PREMIUM',
+        billingCycle,
+        estimatedValue: billingCycle === 'yearly' ? PRICING.PREMIUM.YEARLY_FEE : PRICING.PREMIUM.MONTHLY_FEE
+      });
+      
+      // Start the checkout process
+      setLoading(true);
+      
+      // Call the crypto checkout endpoint
+      const response = await fetch('/api/crypto-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planType: 'PREMIUM',
+          billingCycle: billingCycle,
+          origin: window.location.origin,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        // Track successful redirect to crypto checkout
+        analytics.trackEvent('subscription', 'redirect_to_crypto_checkout', 'Premium Plan', {
+          billingCycle
+        });
+        
+        // Redirect to Coinbase Commerce checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create crypto checkout session');
+      }
+    } catch (error) {
+      // Track checkout error
+      analytics.trackEvent('subscription', 'crypto_checkout_error', error.message);
+      
+      console.error('Error upgrading plan with crypto:', error);
+      alert('Failed to start crypto checkout. Please try again.');
+      setLoading(false);
+    }
+  };
 
   return (
     <LoginCheck>
@@ -555,13 +607,45 @@ export default function PricingPage() {
                       Current Plan
                     </Button>
                   ) : (
-                    <Button 
-                      className="w-full bg-purple-600 hover:bg-purple-700"
-                      onClick={handleUpgrade}
-                      id="premium-upgrade-button" // Add ID for tracking
-                    >
-                      Upgrade to Premium <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-gray-800/60 rounded-lg">
+                        <RadioGroup 
+                          defaultValue="card" 
+                          value={paymentMethod}
+                          onValueChange={setPaymentMethod}
+                          className="flex flex-col space-y-3"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="card" id="card" />
+                            <Label htmlFor="card" className="flex items-center cursor-pointer">
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              <span>Credit Card</span>
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="crypto" id="crypto" />
+                            <Label htmlFor="crypto" className="flex items-center cursor-pointer">
+                              <Bitcoin className="w-4 h-4 mr-2" />
+                              <span>Cryptocurrency</span>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      <Button 
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        onClick={paymentMethod === 'crypto' ? handleCryptoCheckout : handleUpgrade}
+                        id="premium-upgrade-button"
+                      >
+                        Upgrade to Premium <ArrowRight className="ml-1 h-4 w-4" />
+                      </Button>
+                      
+                      {paymentMethod === 'crypto' && (
+                        <p className="text-xs text-gray-400 text-center mt-2">
+                          We accept BTC, ETH, USDC, and other major cryptocurrencies
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -629,7 +713,9 @@ export default function PricingPage() {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-2">What payment methods do you accept?</h3>
                 <p className="text-gray-300">
-                  We accept all major credit cards including Visa, Mastercard, American Express, and Discover.
+                  We accept all major credit cards including Visa, Mastercard, American Express, and Discover. We also accept
+                  cryptocurrencies including Bitcoin (BTC), Ethereum (ETH), USD Coin (USDC), and other major cryptocurrencies for both
+                  subscription payments and wallet deposits.
                 </p>
               </div>
               

@@ -51,9 +51,11 @@ export default function DashboardPage() {
     const depositStatus = searchParams.get('deposit');
     if (depositStatus === 'success') {
       const amount = searchParams.get('amount');
+      const method = searchParams.get('method');
       
       // Show success message
-      alert(`Successfully added $${amount} to your wallet!`);
+      const paymentMethod = method === 'crypto' ? 'cryptocurrency' : 'card';
+      alert(`Successfully added $${amount} to your wallet using ${paymentMethod}!`);
       
       // Refresh wallet data
       walletService.getWalletData().then(data => {
@@ -63,7 +65,8 @@ export default function DashboardPage() {
       // Remove the query params
       router.replace('/dashboard');
     } else if (depositStatus === 'cancelled') {
-      alert('Deposit was cancelled.');
+      const method = searchParams.get('method');
+      alert(`Deposit was cancelled${method ? ` (${method === 'crypto' ? 'cryptocurrency' : 'card'})` : ''}.`);
       
       // Remove the query params
       router.replace('/dashboard');
@@ -73,7 +76,9 @@ export default function DashboardPage() {
     const checkoutStatus = searchParams.get('checkout');
     if (checkoutStatus === 'success') {
       const plan = searchParams.get('plan');
-      alert(`Your subscription to the ${plan} plan was successful!`);
+      const method = searchParams.get('method');
+      
+      alert(`Your subscription to the ${plan} plan was successful${method ? ` using ${method === 'crypto' ? 'cryptocurrency' : 'card'}` : ''}!`);
       
       // Remove the query params
       router.replace('/dashboard');

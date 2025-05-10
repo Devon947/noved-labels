@@ -1,0 +1,27 @@
+{
+  "address_from": {
+    "name": "Test Sender",
+    "street1": "215 Clayton St.",
+    "city": "San Francisco",
+    "state": "CA",
+    "zip": "94117",
+    "country": "US"
+  },
+  "address_to": {
+    "name": "Test Recipient",
+    "street1": "55 Haight St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zip": "94102",
+    "country": "US"
+  },
+  "parcels": [{
+    "length": "10",
+    "width": "8",
+    "height": "4",
+    "distance_unit": "in",
+    "weight": "2",
+    "mass_unit": "lb"
+  }],
+  "async": false
+} 

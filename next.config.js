@@ -16,6 +16,7 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
+    instrumentationHook: true,
     // Allow useSearchParams without suspense boundaries
     missingSuspenseWithCSRBailout: false,
   },

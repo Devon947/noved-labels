@@ -1,13 +1,11 @@
-'use client';
-
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 import AppDownloadBanner from './components/AppDownloadBanner';
 import AnalyticsWrapper from './components/AnalyticsWrapper';
 import { dynamicConfig } from './config';
-import analytics from '@/lib/analytics';
+import ClientLayout from './components/ClientLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -40,14 +38,6 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  useEffect(() => {
-    // Initialize analytics when the app loads
-    analytics.initializeAnalytics({
-      appName: 'NOVED Labels',
-      environment: process.env.NODE_ENV
-    });
-  }, []);
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -79,7 +69,9 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-gray-900 text-white`}>
         <ThemeProvider>
           <AppDownloadBanner />
-          {children}
+          <ClientLayout>
+            {children}
+          </ClientLayout>
           <AnalyticsWrapper />
         </ThemeProvider>
       </body>
