@@ -13,6 +13,14 @@ import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { Badge } from '@/components/ui/badge';
 import { calculatePlanComparison, PRICING } from '@/lib/pricing';
 
+export const dynamic = 'force-dynamic';
+
+export async function generateStaticParams() {
+  // This is a dummy function that returns an empty array
+  // It's required for static export with dynamic routes
+  return [];
+}
+
 export default function LabelPreviewPage() {
   const params = useParams();
   const router = useRouter();

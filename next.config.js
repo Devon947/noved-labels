@@ -29,8 +29,8 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  // Disable static exports entirely
-  output: 'export',
+  // Use standalone mode for Vercel
+  output: 'standalone',
   trailingSlash: true,
 };
 
