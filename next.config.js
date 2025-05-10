@@ -34,7 +34,6 @@ const nextConfig = {
   },
   // Configure output for fully dynamic rendering in production
   output: 'standalone',
-  trailingSlash: true,
   // Disable static optimization to ensure cookies and dynamic features work
   staticPageGenerationTimeout: 1000,
   // Force all pages to be server-side rendered in production

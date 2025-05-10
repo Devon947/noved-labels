@@ -3,43 +3,100 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { walletService } from '@/app/services/WalletService';
-import { logError } from '../../lib/errorLogging';
+import { analytics } from '@/lib/analytics';
+import { rateLimit } from '../rate-limit';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_51Abc123DefGhi456Jkl789Mno012Pqr345StU678');
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder_secret_key';
+// Initialize Stripe with proper error handling and retry configuration
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16',
+  typescript: true,
+  maxNetworkRetries: 3,
+  timeout: 20000,
+});
 
-// Helper function to send email confirmations
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+// Helper function to handle errors consistently
+async function handleError(error, context, event = null) {
+  const errorId = `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Log error with context
+  console.error(`[${errorId}] Error in ${context}:`, {
+    error: error.message,
+    stack: error.stack,
+    event: event?.type,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Track error in analytics
+  await analytics.trackEvent('error', context, {
+    errorId,
+    errorMessage: error.message,
+    eventType: event?.type,
+    timestamp: new Date().toISOString()
+  });
+  
+  return errorId;
+}
+
+// Helper function to send email confirmations with retry logic
 async function sendSubscriptionEmail(email, planType, billingCycle, previousPlan, isNewSubscription) {
-  try {
-    if (!email) return;
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send-confirmation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        planType,
-        billingCycle,
-        previousPlan,
-        isNewSubscription
-      }),
-    });
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      console.error('Failed to send confirmation email:', result.error);
-    } else {
-      console.log('✅ Subscription confirmation email sent');
+  if (!email) return;
+  
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          planType,
+          billingCycle,
+          previousPlan,
+          isNewSubscription,
+          timestamp: new Date().toISOString()
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Email API responded with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send confirmation email');
+      }
+      
+      console.log('✅ Subscription confirmation email sent successfully');
+      return true;
+    } catch (error) {
+      retryCount++;
+      if (retryCount === maxRetries) {
+        await handleError(error, 'sendSubscriptionEmail', {
+          type: 'email_send_failed',
+          email,
+          planType,
+          billingCycle
+        });
+        return false;
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
     }
-  } catch (error) {
-    console.error('Error sending subscription email:', error);
   }
 }
 
-export async function POST(request) {
+// Wrap the POST handler with rate limiting
+export const POST = rateLimit(async function POST(request) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${requestId}] Processing webhook request`);
+  
   const body = await request.text();
   const headersList = headers();
   const signature = headersList.get('stripe-signature');
@@ -47,177 +104,214 @@ export async function POST(request) {
   let event;
   
   try {
+    // Verify webhook signature
     event = stripe.webhooks.constructEvent(
       body,
       signature,
       endpointSecret
     );
+    
+    console.log(`[${requestId}] Webhook signature verified for event: ${event.type}`);
   } catch (err) {
-    console.error(`⚠️ Webhook signature verification failed: ${err.message}`);
+    const errorId = await handleError(err, 'webhook_signature_verification');
     return NextResponse.json(
-      { error: 'Webhook signature verification failed' },
+      { 
+        error: 'Webhook signature verification failed',
+        errorId,
+        requestId
+      },
       { status: 400 }
     );
   }
-  
+
   try {
     // Handle the event
     switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-        const subscription = event.data.object;
-        
-        // Get customer ID from the subscription
-        const customerId = subscription.customer;
-        
-        // Retrieve the customer to get metadata
-        const customer = await stripe.customers.retrieve(customerId);
-        
-        if (customer && customer.metadata && customer.metadata.planType) {
-          // Get user ID from customer metadata (in a real app)
-          const planType = customer.metadata.planType;
-          const billingCycle = customer.metadata.billingCycle || 'monthly';
-          const previousPlan = customer.metadata.previousPlan || 'STANDARD';
-          const customerEmail = customer.email;
-          
-          // Determine if this is a new subscription or an update
-          const isNewSubscription = event.type === 'customer.subscription.created';
-          
-          // Update user's plan in your database
-          if (subscription.status === 'active') {
-            // Update the user's plan to PREMIUM (or whatever plan they subscribed to)
-            await shippingHistoryService.savePlan(planType, { billingCycle });
-            
-            console.log(`✅ Subscription active! Plan set to ${planType} with ${billingCycle} billing`);
-            
-            // Send confirmation email
-            await sendSubscriptionEmail(
-              customerEmail,
-              planType,
-              billingCycle,
-              previousPlan,
-              isNewSubscription
-            );
-            
-            // Track this conversion event for analytics
-            console.log(`📊 Analytics: User converted to ${planType} plan with ${billingCycle} billing`);
-          }
-        }
-        break;
-        
-      case 'customer.subscription.deleted':
-        // Handle subscription cancellation
-        const cancelledSubscription = event.data.object;
-        const cancelledCustomerId = cancelledSubscription.customer;
-        
-        // Retrieve the customer
-        const cancelledCustomer = await stripe.customers.retrieve(cancelledCustomerId);
-        
-        if (cancelledCustomer && cancelledCustomer.metadata) {
-          const previousPlan = cancelledCustomer.metadata.planType || 'PREMIUM';
-          const customerEmail = cancelledCustomer.email;
-          
-          // Downgrade the user back to the standard plan
-          await shippingHistoryService.savePlan('STANDARD');
-          
-          console.log('✅ Subscription cancelled! Plan set to STANDARD');
-          
-          // Send cancellation email
-          await sendSubscriptionEmail(
-            customerEmail,
-            'STANDARD',
-            'monthly',
-            previousPlan,
-            false
-          );
-          
-          // Track cancellation for analytics
-          console.log('📊 Analytics: User cancelled subscription');
-        }
-        break;
-        
-      case 'checkout.session.completed':
-        // Handle completed checkout session
+      case 'checkout.session.completed': {
         const session = event.data.object;
+        console.log(`[${requestId}] Processing checkout.session.completed for session: ${session.id}`);
         
-        // Check if this is a wallet deposit
-        if (session.metadata && session.metadata.type === 'wallet_deposit') {
-          const amount = parseFloat(session.metadata.amount);
-          
-          if (!isNaN(amount) && amount > 0) {
-            // Add funds to wallet
-            const result = await walletService.addFunds(amount);
-            
-            if (result.success) {
-              console.log(`✅ Added $${amount} to wallet`);
-            } else {
-              console.error(`❌ Failed to add funds to wallet: ${result.error}`);
+        // Update user's subscription status with retry logic
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
+        
+        while (retryCount < maxRetries && !success) {
+          try {
+            await shippingHistoryService.savePlan('PREMIUM');
+            success = true;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
             }
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
           }
         }
         
-        // Check if this is a subscription checkout
-        if (session.metadata && session.metadata.planType) {
-          const planType = session.metadata.planType;
-          const billingCycle = session.metadata.billingCycle || 'monthly';
-          const customerEmail = session.customer_details?.email;
-          
-          // This might be redundant with the subscription events above,
-          // but we include it as a backup to ensure the user's plan is updated
-          console.log(`✅ Checkout completed for ${planType} plan with ${billingCycle} billing`);
-          
-          // Track successful checkout conversion for analytics
-          console.log(`📊 Analytics: Completed checkout for ${planType} plan with ${billingCycle} billing`);
+        // Send confirmation email
+        if (session.customer_details?.email) {
+          await sendSubscriptionEmail(
+            session.customer_details.email,
+            'PREMIUM',
+            session.metadata.billingCycle || 'monthly',
+            'STANDARD',
+            true
+          );
         }
+        
+        // Track successful subscription
+        await analytics.trackConversion('complete_subscription', {
+          plan: 'PREMIUM',
+          billingCycle: session.metadata.billingCycle || 'monthly',
+          value: session.amount_total / 100,
+          isNewSubscription: true,
+          sessionId: session.id,
+          requestId
+        });
+        
         break;
+      }
+      
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        console.log(`[${requestId}] Processing subscription update: ${subscription.id}`);
         
-      case 'invoice.payment_succeeded':
-        // Handle successful payment
-        const invoice = event.data.object;
+        // Handle subscription updates with retry logic
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
         
-        // Check if this is a subscription invoice
-        if (invoice.subscription) {
-          // Get the subscription details to determine the billing cycle
-          const invoiceSubscription = await stripe.subscriptions.retrieve(invoice.subscription);
-          const billingCycle = invoiceSubscription.items.data[0]?.plan.interval === 'year' ? 'yearly' : 'monthly';
-          const customerEmail = invoice.customer_email;
-          
-          console.log(`✅ Payment succeeded for ${billingCycle} subscription:`, invoice.subscription);
-          
-          // Track successful payment for analytics
-          console.log(`📊 Analytics: Successful payment for ${billingCycle} subscription`);
+        while (retryCount < maxRetries && !success) {
+          try {
+            if (subscription.status === 'active') {
+              await shippingHistoryService.savePlan('PREMIUM');
+            } else if (subscription.status === 'canceled') {
+              await shippingHistoryService.savePlan('STANDARD');
+            }
+            success = true;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
         }
+        
+        // Track subscription update
+        await analytics.trackEvent('subscription', 'status_updated', {
+          status: subscription.status,
+          subscriptionId: subscription.id,
+          requestId
+        });
+        
         break;
+      }
+      
+      case 'customer.subscription.deleted': {
+        console.log(`[${requestId}] Processing subscription deletion`);
         
-      case 'invoice.payment_failed':
-        // Handle failed payment
-        const failedInvoice = event.data.object;
-        const customerEmail = failedInvoice.customer_email;
+        // Handle subscription cancellation with retry logic
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
         
-        // In a real app, you might want to notify the user or take other actions
-        console.log('❌ Payment failed for subscription:', failedInvoice.subscription);
+        while (retryCount < maxRetries && !success) {
+          try {
+            await shippingHistoryService.savePlan('STANDARD');
+            success = true;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
         
-        // Track failed payment for analytics
-        console.log('📊 Analytics: Failed payment for subscription');
+        // Track subscription cancellation
+        await analytics.trackEvent('subscription', 'cancelled', {
+          requestId,
+          timestamp: new Date().toISOString()
+        });
+        
         break;
+      }
+      
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        console.log(`[${requestId}] Processing successful payment: ${paymentIntent.id}`);
         
+        // Add funds to user's wallet with retry logic
+        const maxRetries = 3;
+        let retryCount = 0;
+        let success = false;
+        
+        while (retryCount < maxRetries && !success) {
+          try {
+            await walletService.addFunds(
+              paymentIntent.metadata.userId,
+              paymentIntent.amount / 100
+            );
+            success = true;
+          } catch (error) {
+            retryCount++;
+            if (retryCount === maxRetries) {
+              throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
+        
+        // Track successful payment
+        await analytics.trackEvent('payment', 'success', {
+          type: 'Wallet Deposit',
+          amount: paymentIntent.amount / 100,
+          paymentIntentId: paymentIntent.id,
+          requestId
+        });
+        
+        break;
+      }
+      
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object;
+        console.log(`[${requestId}] Processing failed payment: ${paymentIntent.id}`);
+        
+        // Track failed payment
+        await analytics.trackEvent('payment', 'failed', {
+          type: 'Wallet Deposit',
+          amount: paymentIntent.amount / 100,
+          error: paymentIntent.last_payment_error?.message,
+          paymentIntentId: paymentIntent.id,
+          requestId
+        });
+        
+        break;
+      }
+      
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.log(`[${requestId}] Unhandled event type: ${event.type}`);
     }
-    
-    return NextResponse.json({ received: true }, { status: 200 });
-  } catch (error) {
-    // Log the error with context
-    logError(error, 'Stripe Webhook Handler', {
-      stripeEvent: error.stripeEvent || null,
-      webhookType: error.type || 'unknown',
+
+    console.log(`[${requestId}] Successfully processed webhook`);
+    return NextResponse.json({ 
+      received: true,
+      requestId,
+      timestamp: new Date().toISOString()
     });
+  } catch (error) {
+    const errorId = await handleError(error, 'webhook_processing', event);
     
-    // Return error response
-    console.error('Webhook error:', error.message);
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
+      { 
+        error: 'Webhook processing failed',
+        errorId,
+        requestId,
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
-} 
+}); 

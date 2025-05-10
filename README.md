@@ -1,6 +1,6 @@
-# NOVED Labels
+# NOVEDLabels Shipping Platform
 
-A full-featured shipping label generation platform with secure label management, ticket creation, and reporting features.
+A modern shipping label generation platform with multi-carrier support and cryptocurrency payments.
 
 ## Features
 
@@ -25,49 +25,93 @@ To run this application successfully in production, you need:
    - Create a project at [supabase.com](https://supabase.com)
    - Get your project URL and anon key
 
-## Deployment
+## Production Setup
+
+### Prerequisites
+
+- Node.js 18.x or later
+- npm or yarn
+- A Stripe account
+- A Coinbase Commerce account
+- A Shippo account
+- A domain name with SSL certificate
 
 ### Environment Variables
 
-Create a `.env.production` file with these variables before deployment:
-
-```
-NODE_ENV=production
-NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-ENCRYPTION_KEY=production_key_min_32_chars_long_here
-SHIPPO_API_KEY=your-shippo-api-key
-NEXT_TELEMETRY_DISABLED=1
-HOST_URL=https://your-domain.com
-ENABLE_ANALYTICS=true
-ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+1. Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
 ```
 
-### Vercel Deployment
+2. Fill in all required environment variables in `.env`:
+- Stripe API keys from your Stripe Dashboard
+- Coinbase Commerce API keys from your Coinbase Commerce Dashboard
+- Shippo API key from your Shippo Dashboard
+- Other configuration values as needed
 
-When deploying to Vercel, add all environment variables in the Vercel project settings.
+### Installation
 
-For complete deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+1. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
 
-## Local Development
-
-1. Clone the repository
-2. Install dependencies:
-   ```
-   npm install
-   ```
-3. Create a `.env.local` file with required environment variables
-4. Run the development server:
-   ```
-   npm run dev
-   ```
-
-## Production Build
-
+2. Build the application:
 ```bash
 npm run build
-npm run start
+# or
+yarn build
 ```
+
+3. Start the production server:
+```bash
+npm start
+# or
+yarn start
+```
+
+### API Endpoints
+
+The following API endpoints need to be configured in your production environment:
+
+1. Stripe Webhook:
+- URL: `https://your-domain.com/api/webhook`
+- Events to listen for: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+2. Coinbase Commerce Webhook:
+- URL: `https://your-domain.com/api/crypto-webhook`
+- Events to listen for: `charge:confirmed`, `charge:failed`
+
+### Security Considerations
+
+1. Ensure all API keys are properly secured and never exposed in client-side code
+2. Set up proper CORS policies in your production environment
+3. Configure rate limiting for API endpoints
+4. Set up proper SSL/TLS certificates
+5. Implement proper error logging and monitoring
+
+### Monitoring
+
+1. Set up error tracking (e.g., Sentry)
+2. Configure application monitoring
+3. Set up uptime monitoring
+4. Configure payment processing monitoring
+
+### Backup and Recovery
+
+1. Set up regular database backups
+2. Configure backup storage
+3. Test recovery procedures regularly
+
+## Support
+
+For support, please contact support@your-domain.com
+
+## License
+
+[Your License]
 
 ## Additional Resources
 

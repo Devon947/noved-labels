@@ -116,6 +116,11 @@ export default function PricingPage() {
       // Start the checkout process
       setLoading(true);
       
+      // Validate environment variables
+      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        throw new Error('Stripe configuration is missing. Please check your environment variables.');
+      }
+      
       // Call the Stripe checkout endpoint
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -129,6 +134,11 @@ export default function PricingPage() {
         }),
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+      
       const data = await response.json();
       
       if (data.url) {
@@ -140,14 +150,14 @@ export default function PricingPage() {
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to create checkout session');
+        throw new Error('Invalid response from checkout endpoint');
       }
     } catch (error) {
       // Track checkout error
       analytics.trackEvent('subscription', 'checkout_error', error.message);
       
       console.error('Error upgrading plan:', error);
-      alert('Failed to start checkout. Please try again.');
+      alert(error.message || 'Failed to start checkout. Please try again.');
       setLoading(false);
     }
   };
@@ -245,6 +255,11 @@ export default function PricingPage() {
       // Start the checkout process
       setLoading(true);
       
+      // Validate environment variables
+      if (!process.env.NEXT_PUBLIC_COINBASE_COMMERCE_KEY) {
+        throw new Error('Coinbase Commerce configuration is missing. Please check your environment variables.');
+      }
+      
       // Call the crypto checkout endpoint
       const response = await fetch('/api/crypto-checkout', {
         method: 'POST',
@@ -258,6 +273,11 @@ export default function PricingPage() {
         }),
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create crypto checkout session');
+      }
+      
       const data = await response.json();
       
       if (data.url) {
@@ -269,14 +289,14 @@ export default function PricingPage() {
         // Redirect to Coinbase Commerce checkout
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to create crypto checkout session');
+        throw new Error('Invalid response from crypto checkout endpoint');
       }
     } catch (error) {
       // Track checkout error
       analytics.trackEvent('subscription', 'crypto_checkout_error', error.message);
       
       console.error('Error upgrading plan with crypto:', error);
-      alert('Failed to start crypto checkout. Please try again.');
+      alert(error.message || 'Failed to start crypto checkout. Please try again.');
       setLoading(false);
     }
   };
