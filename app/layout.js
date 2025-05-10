@@ -1,7 +1,7 @@
 import React from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider } from "../components/ThemeProvider";
 import AppDownloadBanner from './components/AppDownloadBanner';
 
 const inter = Inter({ subsets: ['latin'] });
