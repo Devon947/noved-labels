@@ -20,6 +20,33 @@ class ConfigService {
         }
       };
     }
+
+    const defaultProviders = [
+      {
+        name: 'USPS',
+        apiKey: process.env.USPS_API_KEY || 'default_usps_key',
+        priority: 1,
+        active: true,
+        baseRate: 4.00,
+        autoConfigured: true
+      },
+      {
+        name: 'UPS',
+        apiKey: process.env.UPS_API_KEY || 'default_ups_key',
+        priority: 2,
+        active: true,
+        baseRate: 4.00,
+        autoConfigured: true
+      },
+      {
+        name: 'FedEx',
+        apiKey: process.env.FEDEX_API_KEY || 'default_fedex_key',
+        priority: 3,
+        active: true,
+        baseRate: 4.00,
+        autoConfigured: true
+      }
+    ];
   }
 
   // Initialize configs from environment or stored values
