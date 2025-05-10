@@ -11,6 +11,7 @@ import ProviderConfig from './components/ProviderConfig';
 import { shippingProviderService } from './services/ShippingProviderService';
 import { shippingHistoryService } from './services/ShippingHistoryService';
 import { configService } from './services/ConfigService';
+import AppDownloadBanner from './components/AppDownloadBanner';
 
 export default function Home() {
   const { animations } = useTheme();
@@ -248,6 +249,8 @@ export default function Home() {
           {activeTab === 'providers' && <ProviderConfig />}
         </motion.div>
       </main>
+
+      <AppDownloadBanner />
     </div>
   );
 }

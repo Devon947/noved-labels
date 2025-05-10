@@ -29,10 +29,7 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <AnalyticsWrapper>
           <ThemeProvider>
-            <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
-              {children}
-              <AppDownloadBanner />
-            </main>
+            {children}
           </ThemeProvider>
         </AnalyticsWrapper>
       </body>
