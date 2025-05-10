@@ -12,6 +12,7 @@ import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { PRICING, calculatePlanComparison } from '@/lib/pricing';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import analytics from '@/lib/analytics';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -23,6 +24,20 @@ export default function PricingPage() {
   const [averageRate, setAverageRate] = useState(8.00);
   const [calculatedComparison, setCalculatedComparison] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  
+  // Track page view when component mounts
+  useEffect(() => {
+    // Track pricing page view
+    analytics.trackPageView('/pricing', {
+      title: 'Pricing Page',
+      userPlan
+    });
+    
+    // Track pricing page as a conversion funnel step
+    analytics.trackConversion('view_pricing', {
+      currentPlan: userPlan
+    });
+  }, [userPlan]);
   
   useEffect(() => {
     async function loadUserData() {
@@ -53,6 +68,15 @@ export default function PricingPage() {
         // Update the local state
         setUserPlan(plan);
         
+        // Track successful subscription
+        analytics.trackConversion('complete_subscription', {
+          plan,
+          billingCycle: cycle || 'monthly',
+          value: plan === 'PREMIUM' ? 
+            (cycle === 'yearly' ? PRICING.PREMIUM.YEARLY_FEE : PRICING.PREMIUM.MONTHLY_FEE) : 0,
+          isNewSubscription: true
+        });
+        
         // Show success message
         alert(`Successfully upgraded to ${plan} plan with ${cycle || 'monthly'} billing!`);
         
@@ -60,6 +84,9 @@ export default function PricingPage() {
         router.replace('/pricing');
       }
     } else if (checkoutStatus === 'cancelled') {
+      // Track cancelled checkout
+      analytics.trackEvent('subscription', 'cancel_checkout', 'Abandoned Cart');
+      
       alert('Checkout was cancelled. Your subscription was not activated.');
       
       // Remove the query params
@@ -69,12 +96,20 @@ export default function PricingPage() {
 
   // Calculate comparison when volume or rate changes
   useEffect(() => {
-    const newComparison = calculatePlanComparison(labelCount, averageRate);
+    const newComparison = calculatePlanComparison(labelCount, averageRate, billingCycle);
     setCalculatedComparison(newComparison);
-  }, [labelCount, averageRate]);
+  }, [labelCount, averageRate, billingCycle]);
   
   const handleUpgrade = async () => {
     try {
+      // Track upgrade attempt
+      analytics.trackConversion('start_checkout', {
+        from: userPlan,
+        to: 'PREMIUM',
+        billingCycle,
+        estimatedValue: billingCycle === 'yearly' ? PRICING.PREMIUM.YEARLY_FEE : PRICING.PREMIUM.MONTHLY_FEE
+      });
+      
       // Start the checkout process
       setLoading(true);
       
@@ -94,12 +129,20 @@ export default function PricingPage() {
       const data = await response.json();
       
       if (data.url) {
+        // Track successful redirect to checkout
+        analytics.trackEvent('subscription', 'redirect_to_checkout', 'Premium Plan', {
+          billingCycle
+        });
+        
         // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         throw new Error(data.error || 'Failed to create checkout session');
       }
     } catch (error) {
+      // Track checkout error
+      analytics.trackEvent('subscription', 'checkout_error', error.message);
+      
       console.error('Error upgrading plan:', error);
       alert('Failed to start checkout. Please try again.');
       setLoading(false);
@@ -108,6 +151,12 @@ export default function PricingPage() {
   
   const handleDowngrade = async () => {
     try {
+      // Track downgrade attempt
+      analytics.trackConversion('downgrade_plan', {
+        from: userPlan,
+        to: 'STANDARD'
+      });
+      
       // For downgrading, we just update the plan without payment
       setLoading(true);
       
@@ -115,12 +164,18 @@ export default function PricingPage() {
       await shippingHistoryService.savePlan('STANDARD');
       setUserPlan('STANDARD');
       
+      // Track successful downgrade
+      analytics.trackEvent('subscription', 'plan_changed', 'Downgraded to Standard');
+      
       // Show success message
       alert('Successfully downgraded to Standard plan!');
       
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
+      // Track downgrade error
+      analytics.trackEvent('subscription', 'downgrade_error', error.message);
+      
       console.error('Error downgrading plan:', error);
       alert('Failed to downgrade plan. Please try again.');
       setLoading(false);
@@ -129,12 +184,24 @@ export default function PricingPage() {
   
   const handleSliderChange = (value) => {
     setLabelCount(value[0]);
+    
+    // Track calculator usage after a small delay to avoid excessive events
+    if (value[0] % 10 === 0) { // Only track when moving by increments of 10
+      analytics.trackEvent('calculator', 'adjust_labels', 'Savings Calculator', {
+        labelCount: value[0]
+      });
+    }
   };
   
   const handleLabelInputChange = (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 0) {
       setLabelCount(value);
+      
+      // Track manual entry
+      analytics.trackEvent('calculator', 'manual_labels_entry', 'Savings Calculator', {
+        labelCount: value
+      });
     }
   };
   
@@ -142,7 +209,21 @@ export default function PricingPage() {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value >= 0) {
       setAverageRate(value);
+      
+      // Track manual entry
+      analytics.trackEvent('calculator', 'manual_rate_entry', 'Savings Calculator', {
+        averageRate: value
+      });
     }
+  };
+  
+  const handleBillingCycleChange = (cycle) => {
+    setBillingCycle(cycle);
+    
+    // Track billing cycle selection
+    analytics.trackEvent('subscription', 'select_billing_cycle', cycle, {
+      previousCycle: billingCycle
+    });
   };
 
   // Calculate yearly price with 2 months free
@@ -413,7 +494,11 @@ export default function PricingPage() {
                 </div>
                 
                 <div className="mt-4">
-                  <Tabs defaultValue="monthly" onValueChange={setBillingCycle} className="w-full">
+                  <Tabs 
+                    defaultValue="monthly" 
+                    onValueChange={handleBillingCycleChange} 
+                    className="w-full"
+                  >
                     <TabsList className="w-full grid grid-cols-2">
                       <TabsTrigger value="monthly">Monthly</TabsTrigger>
                       <TabsTrigger value="yearly">Yearly (Save 16.7%)</TabsTrigger>
@@ -473,6 +558,7 @@ export default function PricingPage() {
                     <Button 
                       className="w-full bg-purple-600 hover:bg-purple-700"
                       onClick={handleUpgrade}
+                      id="premium-upgrade-button" // Add ID for tracking
                     >
                       Upgrade to Premium <ArrowRight className="ml-1 h-4 w-4" />
                     </Button>
@@ -516,42 +602,6 @@ export default function PricingPage() {
             </motion.div>
           </div>
           
-          {/* Break-even Calculation */}
-          <motion.div
-            className="mt-16 max-w-5xl mx-auto bg-gray-800/50 rounded-xl border border-gray-700 p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <h2 className="text-2xl font-bold text-white mb-4">When does Premium make sense?</h2>
-            <p className="text-gray-300 mb-6">
-              Premium subscription pays for itself when you ship more than {PRICING.PREMIUM.BREAK_EVEN_LABELS} labels per month.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">10 labels per month</h3>
-                <p className="text-gray-400">Standard: ${(10 * PRICING.STANDARD.MARKUP_PER_LABEL).toFixed(2)}</p>
-                <p className="text-gray-400">Premium: ${(10 * PRICING.PREMIUM.MARKUP_PER_LABEL + PRICING.PREMIUM.MONTHLY_FEE).toFixed(2)}</p>
-                <p className="text-red-400 mt-2 font-medium">Stay with Standard</p>
-              </div>
-              
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">50 labels per month</h3>
-                <p className="text-gray-400">Standard: ${(50 * PRICING.STANDARD.MARKUP_PER_LABEL).toFixed(2)}</p>
-                <p className="text-gray-400">Premium: ${(50 * PRICING.PREMIUM.MARKUP_PER_LABEL + PRICING.PREMIUM.MONTHLY_FEE).toFixed(2)}</p>
-                <p className="text-red-400 mt-2 font-medium">Stay with Standard</p>
-              </div>
-              
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">{PRICING.PREMIUM.BREAK_EVEN_LABELS}+ labels per month</h3>
-                <p className="text-gray-400">Standard: ${(PRICING.PREMIUM.BREAK_EVEN_LABELS * PRICING.STANDARD.MARKUP_PER_LABEL).toFixed(2)}</p>
-                <p className="text-gray-400">Premium: ${(PRICING.PREMIUM.BREAK_EVEN_LABELS * PRICING.PREMIUM.MARKUP_PER_LABEL + PRICING.PREMIUM.MONTHLY_FEE).toFixed(2)}</p>
-                <p className="text-green-400 mt-2 font-medium">Upgrade to Premium</p>
-              </div>
-            </div>
-          </motion.div>
-          
           {/* FAQ Section */}
           <motion.div
             className="mt-16 max-w-3xl mx-auto"
@@ -584,9 +634,10 @@ export default function PricingPage() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Do carrier fees change with plans?</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">How does billing work?</h3>
                 <p className="text-gray-300">
-                  No, carrier rates remain the same across all plans. Only our service fee changes.
+                  The Standard plan has no monthly fee and you pay $4.00 per label. The Premium plan costs $99/month (or $999/year) and you pay $3.00 per label.
+                  All charges for labels are deducted from your wallet balance.
                 </p>
               </div>
               
@@ -594,20 +645,6 @@ export default function PricingPage() {
                 <h3 className="text-lg font-semibold text-white mb-2">Is there a limit to how many labels I can create?</h3>
                 <p className="text-gray-300">
                   Yes, the Standard plan is limited to 100 labels per month. The Premium plan offers unlimited label generation.
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">How does the billing work?</h3>
-                <p className="text-gray-300">
-                  You deposit funds to your account balance. Each time you generate a label, the fee is deducted automatically. Premium subscribers are also billed the monthly subscription fee.
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">How much can I save compared to retail shipping rates?</h3>
-                <p className="text-gray-300">
-                  Our users typically save 20-40% compared to retail shipping rates, depending on the carrier and destination. Your actual savings are displayed on your dashboard.
                 </p>
               </div>
             </div>
