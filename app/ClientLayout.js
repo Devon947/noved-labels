@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import ErrorBoundary from '../components/ErrorBoundary';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { useReportWebVitals } from 'next/web-vitals';
@@ -121,9 +121,9 @@ export default function ClientLayout({ children }) {
   }
 
   return (
-    <StoreProvider>
-      <Navigation />
-      <ErrorBoundary>
+    <GlobalErrorBoundary>
+      <StoreProvider>
+        <Navigation />
         <ThemeProvider>
           <AnimatePresence mode="wait">
             {isLoading ? (
@@ -185,7 +185,7 @@ export default function ClientLayout({ children }) {
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>
-      </ErrorBoundary>
-    </StoreProvider>
+      </StoreProvider>
+    </GlobalErrorBoundary>
   );
 } 
