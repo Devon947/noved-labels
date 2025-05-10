@@ -1,0 +1,1 @@
+export default function Clipper() { return (<form><input placeholder='Apply to be a clipper' /></form>); }

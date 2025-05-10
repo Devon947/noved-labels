@@ -1,0 +1,14 @@
+# Allow all web crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /dashboard/settings/
+Disallow: /dashboard/tickets/
+
+# Sitemap location
+Sitemap: https://novedlabels.com/sitemap.xml
+
+# Crawl-delay for all bots
+Crawl-delay: 10 

@@ -1,0 +1,1 @@
+export default function Pricing() { return (<div>Pricing Logic Placeholder</div>); }

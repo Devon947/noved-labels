@@ -1,0 +1,42 @@
+{
+  "name": "NOVEDLabels",
+  "short_name": "NOVEDLabels",
+  "description": "Professional Shipping Labels & E-commerce Solutions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "portrait",
+  "categories": ["shopping", "business", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Products",
+      "url": "/products",
+      "description": "View our products"
+    },
+    {
+      "name": "Cart",
+      "url": "/cart",
+      "description": "View your cart"
+    }
+  ]
+} 

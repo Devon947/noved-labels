@@ -1,0 +1,39 @@
+{
+  "name": "NOVED Labels",
+  "short_name": "NOVED",
+  "description": "Create and manage shipping labels with ease",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#3B82F6",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Label",
+      "short_name": "Create",
+      "description": "Create a new shipping label",
+      "url": "/ship",
+      "icons": [{ "src": "/icons/create-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Label History",
+      "short_name": "History",
+      "description": "View shipping label history",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/history-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+} 
