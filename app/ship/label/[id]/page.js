@@ -14,6 +14,8 @@ import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { Badge } from '@/components/ui/badge';
 import { calculatePlanComparison, PRICING } from '@/lib/pricing';
 
+export const dynamic = 'force-dynamic';
+
 // Make this async for server-side data fetching
 export default async function LabelPreviewPage({ params }) {
   // Server-side data fetching instead of client-side
