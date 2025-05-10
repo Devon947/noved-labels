@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { PaperAirplaneIcon, CubeIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, PackageIcon, MapPinIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function LoadingScreen({ isLoading, onLoadingComplete }) {
   const canvasRef = useRef(null);
@@ -156,6 +156,32 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
 
       {/* Enhanced flying elements container */}
       <div className="relative">
+        {/* Shipping Route Animation */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            className="absolute rounded-full border-2 border-indigo-500/30"
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.5, 0.2, 0.5]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            style={{
+              width: '200px',
+              height: '200px'
+            }}
+          />
+        </motion.div>
+
+        {/* Delivery Truck Animation */}
         <motion.div
           animate={{
             x: [-150, 150],
@@ -170,7 +196,6 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
           }}
           className="relative"
         >
-          {/* Enhanced gooey trail effect */}
           <motion.div
             className="absolute inset-0 rounded-full"
             animate={{
@@ -190,7 +215,6 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
             }}
           />
 
-          {/* Enhanced airplane with more dynamic effects */}
           <motion.div
             animate={{
               rotate: [-5, 5],
@@ -204,8 +228,8 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
               ease: "easeInOut"
             }}
           >
-            <PaperAirplaneIcon 
-              className="w-20 h-20 transform rotate-90"
+            <TruckIcon 
+              className="w-20 h-20"
               style={{
                 color: '#818CF8',
                 filter: 'drop-shadow(0 0 20px rgba(129, 140, 248, 0.8))'
@@ -213,7 +237,7 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
             />
           </motion.div>
 
-          {/* Enhanced floating package with more dynamic effects */}
+          {/* Package Animation */}
           <motion.div
             animate={{
               y: [-10, 10],
@@ -228,7 +252,7 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
             }}
             className="absolute -bottom-12 left-1/2 transform -translate-x-1/2"
           >
-            <CubeIcon 
+            <PackageIcon 
               className="w-14 h-14"
               style={{
                 color: '#A78BFA',
@@ -237,11 +261,12 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
             />
           </motion.div>
 
-          {/* Added sparkles effect */}
+          {/* Location Pin Animation */}
           <motion.div
             animate={{
               scale: [1, 1.2, 1],
-              rotate: [0, 360]
+              rotate: [0, 360],
+              opacity: [0.5, 1, 0.5]
             }}
             transition={{
               duration: 2,
@@ -250,38 +275,51 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
             }}
             className="absolute -top-8 right-0"
           >
-            <SparklesIcon 
+            <MapPinIcon 
               className="w-8 h-8"
               style={{
-                color: '#FCD34D',
-                filter: 'drop-shadow(0 0 10px rgba(252, 211, 77, 0.8))'
+                color: '#F472B6',
+                filter: 'drop-shadow(0 0 10px rgba(244, 114, 182, 0.8))'
               }}
             />
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Enhanced loading text with more dynamic animation */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ 
-          opacity: [0, 1, 0],
-          y: [0, -10, 0],
-          scale: [1, 1.1, 1]
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        className="absolute bottom-1/3 text-xl font-medium"
-        style={{
-          color: '#A78BFA',
-          textShadow: '0 0 15px rgba(167, 139, 250, 0.6)'
-        }}
+      {/* Add loading text with animation */}
+      <motion.div
+        className="absolute bottom-1/4 text-white/80 text-lg font-medium"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
       >
-        Preparing your shipping experience...
-      </motion.p>
+        <motion.span
+          animate={{
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          Preparing your shipping labels
+        </motion.span>
+        <motion.span
+          animate={{
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.5
+          }}
+          className="ml-1"
+        >
+          ...
+        </motion.span>
+      </motion.div>
 
       {/* Enhanced SVG filter for gooey effect */}
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -297,6 +335,30 @@ export default function LoadingScreen({ isLoading, onLoadingComplete }) {
           </filter>
         </defs>
       </svg>
+
+      {/* Route Path Animation */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        <svg className="w-full h-full">
+          <motion.path
+            d="M 100,100 Q 300,50 500,100 T 900,100"
+            fill="none"
+            stroke="rgba(79, 70, 229, 0.2)"
+            strokeWidth="2"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+        </svg>
+      </motion.div>
     </motion.div>
   );
 } 

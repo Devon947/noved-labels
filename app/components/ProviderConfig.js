@@ -2,214 +2,235 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useTheme } from '../contexts/ThemeContext';
-import { shippingProviderService } from '../services/ShippingProviderService';
+import { configService } from '../services/ConfigService';
 
 export default function ProviderConfig() {
-  const { animations } = useTheme();
-  const [providers, setProviders] = useState({});
+  const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [configuring, setConfiguring] = useState(null);
-  const [apiKey, setApiKey] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    apiKey: '',
+    isActive: true,
+    priority: 1
+  });
 
   useEffect(() => {
     loadProviders();
   }, []);
 
   const loadProviders = async () => {
-    setLoading(true);
     try {
-      await shippingProviderService.init();
-      const providerData = shippingProviderService.getProviders();
-      setProviders(providerData);
-    } catch (error) {
-      console.error('Error loading providers:', error);
+      setLoading(true);
+      const data = await configService.getProviders();
+      setProviders(data);
+      setError(null);
+    } catch (err) {
       setError('Failed to load shipping providers');
+      console.error('Error loading providers:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConfigure = (providerId) => {
-    setConfiguring(providerId);
-    setApiKey('');
-    setError('');
-    setSuccess('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (selectedProvider) {
+        await configService.updateProvider(selectedProvider.id, formData);
+      } else {
+        await configService.addProvider(formData);
+      }
+      await loadProviders();
+      resetForm();
+    } catch (err) {
+      setError('Failed to save provider configuration');
+      console.error('Error saving provider:', err);
+    }
   };
 
-  const handleSave = async () => {
-    if (!apiKey.trim()) {
-      setError('API key is required');
-      return;
-    }
+  const handleEdit = (provider) => {
+    setSelectedProvider(provider);
+    setFormData({
+      name: provider.name,
+      apiKey: provider.apiKey,
+      isActive: provider.isActive,
+      priority: provider.priority
+    });
+  };
 
-    setError('');
-    try {
-      const result = await shippingProviderService.configureProvider(configuring, apiKey);
-      
-      if (result.success) {
-        setSuccess(`${providers[configuring].name} configured successfully`);
-        loadProviders();
-        setTimeout(() => {
-          setConfiguring(null);
-          setSuccess('');
-        }, 2000);
-      } else {
-        setError(result.error || 'Failed to configure provider');
+  const handleDelete = async (providerId) => {
+    if (window.confirm('Are you sure you want to delete this provider?')) {
+      try {
+        await configService.deleteProvider(providerId);
+        await loadProviders();
+      } catch (err) {
+        setError('Failed to delete provider');
+        console.error('Error deleting provider:', err);
       }
-    } catch (error) {
-      setError(`Failed to configure provider: ${error.message}`);
     }
+  };
+
+  const resetForm = () => {
+    setSelectedProvider(null);
+    setFormData({
+      name: '',
+      apiKey: '',
+      isActive: true,
+      priority: 1
+    });
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center py-12">
+        <div className="loading-spinner"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={animations.pageTransition}
-        className="space-y-6"
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold gradient-text">Shipping Providers</h2>
+        <button
+          onClick={resetForm}
+          className="button-secondary"
+        >
+          Add New Provider
+        </button>
+      </div>
+
+      {error && (
+        <div className="glass-card p-4 border-red-500/20">
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
+
+      <motion.form
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        onSubmit={handleSubmit}
+        className="glass-card p-6 space-y-6"
       >
-        <h2 className="text-2xl font-bold text-white">Shipping Providers</h2>
-        <p className="text-gray-400 mb-4">
-          Configure your shipping providers to generate real shipping labels.
-          {process.env.NODE_ENV !== 'production' && (
-            <span className="text-yellow-400 ml-2">
-              (In development mode, all providers are auto-configured for testing)
-            </span>
-          )}
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(providers).map(([providerId, provider]) => (
-            <motion.div
-              key={providerId}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              variants={animations.listItem}
-              className={`
-                bg-gray-800 rounded-lg p-6 
-                ${provider.configured ? 'border-2 border-green-500' : 'border border-gray-700'}
-              `}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              Provider Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 text-white placeholder-white/50"
+              placeholder="Enter provider name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              API Key
+            </label>
+            <input
+              type="password"
+              value={formData.apiKey}
+              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 text-white placeholder-white/50"
+              placeholder="Enter API key"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              Priority
+            </label>
+            <input
+              type="number"
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+              className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 text-white placeholder-white/50"
+              min="1"
+              required
+            />
+          </div>
+
+          <div className="flex items-center">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/20"
+              />
+              <span className="text-white/80">Active</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-4">
+          {selectedProvider && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="button-secondary"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
-                {provider.name}
-              </h3>
-              <div className="space-y-2 mb-4">
-                {provider.features.map((feature) => (
-                  <div key={feature} className="flex items-center text-gray-400">
-                    <svg
-                      className="w-4 h-4 mr-2 text-green-500"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    {feature}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-2 mb-4">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-2 ${provider.configured ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className={provider.configured ? 'text-green-400' : 'text-red-400'}>
-                    {provider.configured ? 'Configured' : 'Not Configured'}
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            className="button-primary"
+          >
+            {selectedProvider ? 'Update Provider' : 'Add Provider'}
+          </button>
+        </div>
+      </motion.form>
+
+      <div className="grid gap-6">
+        {providers.map((provider) => (
+          <motion.div
+            key={provider.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-6"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">{provider.name}</h3>
+                <div className="flex items-center space-x-4 text-sm">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    provider.isActive
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {provider.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  <span className="text-white/60">
+                    Priority: {provider.priority}
                   </span>
                 </div>
               </div>
-              
-              <div className="mt-4">
-                {provider.configured ? (
-                  <button
-                    onClick={() => handleConfigure(providerId)}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
-                  >
-                    Reconfigure
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleConfigure(providerId)}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                  >
-                    Configure
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Configuration Modal */}
-        {configuring && (
-          <motion.div
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            variants={animations.modalTransition}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          >
-            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-semibold text-white mb-4">
-                Configure {providers[configuring].name}
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    API Key
-                  </label>
-                  <input
-                    type="text"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter API key"
-                  />
-                </div>
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded p-2">
-                    <p className="text-red-400 text-sm">{error}</p>
-                  </div>
-                )}
-                {success && (
-                  <div className="bg-green-500/10 border border-green-500/20 rounded p-2">
-                    <p className="text-green-400 text-sm">{success}</p>
-                  </div>
-                )}
-                <div className="flex space-x-4">
-                  <button
-                    onClick={handleSave}
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setConfiguring(null)}
-                    className="flex-1 px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleEdit(provider)}
+                  className="button-secondary px-3 py-1"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(provider.id)}
+                  className="button-danger px-3 py-1"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </motion.div>
-        )}
-      </motion.div>
+        ))}
+      </div>
     </div>
   );
 } 

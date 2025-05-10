@@ -10,7 +10,7 @@ export default function ShippingForm({
   onSubmit,
   isLoading,
   validationErrors = {},
-  submitLabel = 'Submit'
+  submitLabel = 'Generate Label'
 }) {
   const { animations } = useTheme();
   const [touched, setTouched] = useState({});
@@ -39,132 +39,271 @@ export default function ShippingForm({
     return touched[field] ? validationErrors[field] : null;
   };
 
-  const renderInput = (field, label, type = 'text', placeholder = '') => {
-    // Handle nested properties for dimensions
-    let fieldValue = '';
-    if (field.includes('dimensions.')) {
-      const dimensionField = field.split('.')[1];
-      fieldValue = formData.dimensions?.[dimensionField] || '';
-    } else {
-      fieldValue = formData[field] || '';
-    }
-    
-    return (
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          {label}
-        </label>
-        <motion.div
-          animate={getFieldError(field) ? 'error' : touched[field] ? 'success' : undefined}
-          variants={animations}
-        >
-          <input
-            type={type}
-            value={fieldValue}
-            onChange={(e) => handleChange(field, e.target.value)}
-            onBlur={() => setTouched(prev => ({ ...prev, [field]: true }))}
-            placeholder={placeholder}
-            className={`
-              w-full px-4 py-2 bg-gray-700 border rounded-lg text-white placeholder-gray-400
-              focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors
-              ${getFieldError(field)
-                ? 'border-red-500'
-                : touched[field]
-                  ? 'border-green-500'
-                  : 'border-gray-600'
-              }
-            `}
-          />
-          {getFieldError(field) && (
-            <motion.p
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-1 text-sm text-red-400"
-            >
-              {getFieldError(field)}
-            </motion.p>
-          )}
-        </motion.div>
-      </div>
-    );
-  };
+  const inputClasses = "w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 text-white placeholder-white/50";
+  const labelClasses = "block text-sm font-medium text-white/80 mb-2";
+  const errorClasses = "text-red-400 text-sm mt-1";
 
   return (
-    <form onSubmit={onSubmit} className="space-y-8">
-      {/* From Address Section */}
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={animations.pageTransition}
-      >
-        <h2 className="text-xl font-semibold mb-4 text-blue-400">From Address</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('fromName', 'Name', 'text', 'Full Name')}
-          {renderInput('fromAddress', 'Address', 'text', 'Street Address')}
-          {renderInput('fromCity', 'City', 'text', 'City')}
-          <div className="grid grid-cols-2 gap-4">
-            {renderInput('fromState', 'State', 'text', 'State')}
-            {renderInput('fromZip', 'ZIP', 'text', 'ZIP Code')}
-          </div>
-        </div>
-      </motion.div>
+    <motion.form
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      onSubmit={onSubmit}
+      className="space-y-6"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* From Address */}
+        <div className="glass-card p-6">
+          <h3 className="text-xl font-bold gradient-text mb-6">From Address</h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="fromName" className={labelClasses}>Name</label>
+              <input
+                type="text"
+                id="fromName"
+                name="fromName"
+                value={formData.fromName}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="John Doe"
+              />
+              {getFieldError('fromName') && (
+                <p className={errorClasses}>{getFieldError('fromName')}</p>
+              )}
+            </div>
 
-      {/* To Address Section */}
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={animations.pageTransition}
-        transition={{ delay: 0.1 }}
-      >
-        <h2 className="text-xl font-semibold mb-4 text-purple-400">To Address</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('toName', 'Name', 'text', 'Full Name')}
-          {renderInput('toAddress', 'Address', 'text', 'Street Address')}
-          {renderInput('toCity', 'City', 'text', 'City')}
-          <div className="grid grid-cols-2 gap-4">
-            {renderInput('toState', 'State', 'text', 'State')}
-            {renderInput('toZip', 'ZIP', 'text', 'ZIP Code')}
+            <div>
+              <label htmlFor="fromAddress" className={labelClasses}>Street Address</label>
+              <input
+                type="text"
+                id="fromAddress"
+                name="fromAddress"
+                value={formData.fromAddress}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="123 Main St"
+              />
+              {getFieldError('fromAddress') && (
+                <p className={errorClasses}>{getFieldError('fromAddress')}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="fromCity" className={labelClasses}>City</label>
+                <input
+                  type="text"
+                  id="fromCity"
+                  name="fromCity"
+                  value={formData.fromCity}
+                  onChange={onChange}
+                  className={inputClasses}
+                  placeholder="New York"
+                />
+                {getFieldError('fromCity') && (
+                  <p className={errorClasses}>{getFieldError('fromCity')}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="fromState" className={labelClasses}>State</label>
+                <input
+                  type="text"
+                  id="fromState"
+                  name="fromState"
+                  value={formData.fromState}
+                  onChange={onChange}
+                  className={inputClasses}
+                  placeholder="NY"
+                />
+                {getFieldError('fromState') && (
+                  <p className={errorClasses}>{getFieldError('fromState')}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="fromZip" className={labelClasses}>ZIP Code</label>
+              <input
+                type="text"
+                id="fromZip"
+                name="fromZip"
+                value={formData.fromZip}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="10001"
+              />
+              {getFieldError('fromZip') && (
+                <p className={errorClasses}>{getFieldError('fromZip')}</p>
+              )}
+            </div>
           </div>
         </div>
-      </motion.div>
+
+        {/* To Address */}
+        <div className="glass-card p-6">
+          <h3 className="text-xl font-bold gradient-text mb-6">To Address</h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="toName" className={labelClasses}>Name</label>
+              <input
+                type="text"
+                id="toName"
+                name="toName"
+                value={formData.toName}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="Jane Smith"
+              />
+              {getFieldError('toName') && (
+                <p className={errorClasses}>{getFieldError('toName')}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="toAddress" className={labelClasses}>Street Address</label>
+              <input
+                type="text"
+                id="toAddress"
+                name="toAddress"
+                value={formData.toAddress}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="456 Oak Ave"
+              />
+              {getFieldError('toAddress') && (
+                <p className={errorClasses}>{getFieldError('toAddress')}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="toCity" className={labelClasses}>City</label>
+                <input
+                  type="text"
+                  id="toCity"
+                  name="toCity"
+                  value={formData.toCity}
+                  onChange={onChange}
+                  className={inputClasses}
+                  placeholder="Los Angeles"
+                />
+                {getFieldError('toCity') && (
+                  <p className={errorClasses}>{getFieldError('toCity')}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="toState" className={labelClasses}>State</label>
+                <input
+                  type="text"
+                  id="toState"
+                  name="toState"
+                  value={formData.toState}
+                  onChange={onChange}
+                  className={inputClasses}
+                  placeholder="CA"
+                />
+                {getFieldError('toState') && (
+                  <p className={errorClasses}>{getFieldError('toState')}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="toZip" className={labelClasses}>ZIP Code</label>
+              <input
+                type="text"
+                id="toZip"
+                name="toZip"
+                value={formData.toZip}
+                onChange={onChange}
+                className={inputClasses}
+                placeholder="90001"
+              />
+              {getFieldError('toZip') && (
+                <p className={errorClasses}>{getFieldError('toZip')}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Package Details */}
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={animations.pageTransition}
-        transition={{ delay: 0.2 }}
-      >
-        <h2 className="text-xl font-semibold mb-4 text-green-400">Package Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {renderInput('weight', 'Weight (lbs)', 'number', 'Package Weight')}
-          <div className="grid grid-cols-3 gap-4">
-            {renderInput('dimensions.length', 'L', 'number', 'Length')}
-            {renderInput('dimensions.width', 'W', 'number', 'Width')}
-            {renderInput('dimensions.height', 'H', 'number', 'Height')}
+      <div className="glass-card p-6">
+        <h3 className="text-xl font-bold gradient-text mb-6">Package Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label htmlFor="weight" className={labelClasses}>Weight (lbs)</label>
+            <input
+              type="number"
+              id="weight"
+              name="weight"
+              value={formData.weight}
+              onChange={onChange}
+              className={inputClasses}
+              placeholder="1.5"
+              step="0.1"
+            />
+            {getFieldError('weight') && (
+              <p className={errorClasses}>{getFieldError('weight')}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="length" className={labelClasses}>Length (in)</label>
+            <input
+              type="number"
+              id="length"
+              name="length"
+              value={formData.length}
+              onChange={onChange}
+              className={inputClasses}
+              placeholder="12"
+            />
+            {getFieldError('length') && (
+              <p className={errorClasses}>{getFieldError('length')}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="width" className={labelClasses}>Width (in)</label>
+            <input
+              type="number"
+              id="width"
+              name="width"
+              value={formData.width}
+              onChange={onChange}
+              className={inputClasses}
+              placeholder="8"
+            />
+            {getFieldError('width') && (
+              <p className={errorClasses}>{getFieldError('width')}</p>
+            )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Submit Button */}
-      <motion.button
-        whileHover="hover"
-        whileTap="tap"
-        variants={animations}
-        type="submit"
-        disabled={isLoading}
-        className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Loading...
-          </div>
-        ) : submitLabel}
-      </motion.button>
-    </form>
+      <div className="flex justify-end">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          type="submit"
+          disabled={isLoading}
+          className={`button-primary px-8 py-3 ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {isLoading ? (
+            <div className="flex items-center">
+              <div className="loading-spinner mr-2"></div>
+              Processing...
+            </div>
+          ) : (
+            submitLabel
+          )}
+        </motion.button>
+      </div>
+    </motion.form>
   );
 } 

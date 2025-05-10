@@ -152,11 +152,11 @@ export default function Home() {
 
   if (serviceStatus.initializing) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-8"></div>
-          <h2 className="text-2xl font-bold mb-4">Initializing Services</h2>
-          <p className="text-gray-400">Please wait while we set up your shipping dashboard...</p>
+      <div className="min-h-screen animated-gradient flex items-center justify-center">
+        <div className="glass-card p-12 text-center">
+          <div className="loading-spinner mx-auto mb-8"></div>
+          <h2 className="text-2xl font-bold mb-4 gradient-text">Initializing Services</h2>
+          <p className="text-white/80">Please wait while we set up your shipping dashboard...</p>
         </div>
       </div>
     );
@@ -164,18 +164,18 @@ export default function Home() {
 
   if (serviceStatus.error) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center p-8 max-w-md">
+      <div className="min-h-screen animated-gradient flex items-center justify-center">
+        <div className="glass-card p-12 text-center max-w-md">
           <div className="bg-red-500/20 rounded-full p-4 mx-auto mb-6 w-20 h-20 flex items-center justify-center">
             <svg className="w-10 h-10 text-red-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
               <path d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-4 text-red-400">Initialization Error</h2>
-          <p className="text-gray-400 mb-6">{serviceStatus.error}</p>
+          <p className="text-white/80 mb-6">{serviceStatus.error}</p>
           <button 
             onClick={initializeServices}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="button-primary"
           >
             Retry
           </button>
@@ -185,13 +185,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="bg-gray-800 shadow-lg">
+    <div className="min-h-screen animated-gradient">
+      <header className="glass-card mb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-blue-400">
+          <h1 className="text-4xl font-bold gradient-text">
             Shipping Label Service
           </h1>
-          <p className="text-gray-400 mt-1">Generate shipping labels with the best rates</p>
+          <p className="text-white/80 mt-2">Generate shipping labels with the best rates</p>
         </div>
       </header>
 
@@ -203,10 +203,10 @@ export default function Home() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-6 py-3 rounded-lg transition-all duration-300 ${
                   activeTab === tab.id
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    ? 'button-primary'
+                    : 'button-secondary'
                 }`}
               >
                 {tab.label}
@@ -220,20 +220,23 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg ${
-              success ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
+            className={`mb-6 glass-card p-4 ${
+              success ? 'border-green-500/20' : 'border-red-500/20'
             }`}
           >
-            {success || error}
+            <p className={success ? 'text-green-400' : 'text-red-400'}>
+              {success || error}
+            </p>
           </motion.div>
         )}
 
         {/* Content */}
         <motion.div
           key={activeTab}
-          initial="initial"
-          animate="animate"
-          variants={animations.pageTransition}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="glass-card p-6"
         >
           {activeTab === 'shipping' && (
             <ShippingForm

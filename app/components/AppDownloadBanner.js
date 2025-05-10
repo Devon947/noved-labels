@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Download, ChevronRight, Apple, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 
 export default function AppDownloadBanner() {
   const [isVisible, setIsVisible] = useState(false);
@@ -60,38 +61,48 @@ export default function AppDownloadBanner() {
   }
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blue-900 to-purple-900 p-3 z-50">
-      <div className="container mx-auto flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="bg-white/10 p-2 rounded-full mr-3">
-            <Smartphone className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-white text-sm">Get the NOVED Labels App</h3>
-            <p className="text-blue-100 text-xs">Ship faster, track better, save more</p>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card mt-8 p-6"
+    >
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex-1">
+          <h3 className="text-xl font-bold gradient-text mb-2">
+            Get the Noved Labels App
+          </h3>
+          <p className="text-white/80">
+            Download our mobile app to create and manage shipping labels on the go.
+            Available for iOS and Android devices.
+          </p>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button 
-            size="sm" 
-            className="bg-white text-blue-900 hover:bg-blue-100"
-            onClick={() => window.open(getAppLink(), '_blank')}
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <motion.a
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            href="#"
+            className="button-primary flex items-center justify-center px-6 py-3"
           >
-            <Download className="h-4 w-4 mr-1" />
-            {isMobile ? 'Download' : 'Get App'}
-          </Button>
-          
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="text-white p-1"
-            onClick={dismiss}
+            <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.41-1.09-.47-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.41C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.78 1.18-.19 2.31-.89 3.51-.84 1.54.07 2.7.61 3.44 1.57-3.14 1.88-2.29 5.13.22 6.41-.65 1.29-1.43 2.58-2.25 4.05zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+            </svg>
+            App Store
+          </motion.a>
+
+          <motion.a
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            href="#"
+            className="button-secondary flex items-center justify-center px-6 py-3"
           >
-            <X className="h-5 w-5" />
-          </Button>
+            <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.5 3.59L20.5 12L3.5 20.41V3.59ZM3.5 1C2.67 1 2 1.67 2 2.5V21.5C2 22.33 2.67 23 3.5 23L22.5 14L3.5 1Z"/>
+            </svg>
+            Google Play
+          </motion.a>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 } 

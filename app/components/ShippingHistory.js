@@ -1,203 +1,172 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { shippingHistoryService } from '../services/ShippingHistoryService';
 
 export default function ShippingHistory() {
   const { animations } = useTheme();
-  const [history, setHistory] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
+  const [selectedLabel, setSelectedLabel] = useState(null);
 
   useEffect(() => {
-    loadHistory();
+    loadLabels();
   }, []);
 
-  const loadHistory = async () => {
-    setLoading(true);
-    setError('');
+  const loadLabels = async () => {
     try {
-      const data = await shippingHistoryService.getHistory();
-      setHistory(data);
-    } catch (error) {
-      console.error('Error loading history:', error);
+      setLoading(true);
+      const data = await shippingHistoryService.getLabels();
+      setLabels(data);
+      setError(null);
+    } catch (err) {
       setError('Failed to load shipping history');
+      console.error('Error loading labels:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    if (!query) {
-      loadHistory();
-      return;
-    }
+  const handleDownload = async (labelId) => {
     try {
-      const results = await shippingHistoryService.searchHistory(query);
-      setHistory(results);
-    } catch (error) {
-      console.error('Error searching history:', error);
-      setError('Failed to search shipping history');
+      await shippingHistoryService.downloadLabel(labelId);
+    } catch (err) {
+      console.error('Error downloading label:', err);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (labelId) => {
     try {
-      const result = await shippingHistoryService.deleteFromHistory(id);
-      if (result.success) {
-        loadHistory();
-      } else {
-        setError(result.error || 'Failed to delete item');
-      }
-    } catch (error) {
-      console.error('Error deleting history item:', error);
-      setError('Failed to delete history item');
+      await shippingHistoryService.deleteLabel(labelId);
+      setLabels(labels.filter(label => label.id !== labelId));
+    } catch (err) {
+      console.error('Error deleting label:', err);
     }
   };
 
-  const formatDate = (dateString) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Unknown date';
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
-  const clearHistory = async () => {
-    if (window.confirm('Are you sure you want to clear all shipping history?')) {
-      try {
-        const result = await shippingHistoryService.clearHistory();
-        if (result.success) {
-          loadHistory();
-        } else {
-          setError(result.error || 'Failed to clear history');
-        }
-      } catch (error) {
-        console.error('Error clearing history:', error);
-        setError('Failed to clear history');
-      }
-    }
-  };
+  if (error) {
+    return (
+      <div className="glass-card p-6 text-center">
+        <div className="text-red-400 mb-4">
+          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold mb-2">Error Loading History</h3>
+        <p className="text-white/80 mb-4">{error}</p>
+        <button
+          onClick={loadLabels}
+          className="button-secondary"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (labels.length === 0) {
+    return (
+      <div className="glass-card p-12 text-center">
+        <div className="text-white/40 mb-6">
+          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold mb-2">No Shipping Labels</h3>
+        <p className="text-white/80">Your shipping history will appear here once you create your first label.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <motion.div
-        initial="initial"
-        animate="animate"
-        variants={animations.pageTransition}
-        className="space-y-6"
-      >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h2 className="text-2xl font-bold text-white">Shipping History</h2>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              placeholder="Search history..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-grow"
-            />
-            {history.length > 0 && (
-              <button
-                onClick={clearHistory}
-                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold gradient-text">Shipping History</h2>
+        <button
+          onClick={loadLabels}
+          className="button-secondary"
+        >
+          Refresh
+        </button>
+      </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded p-3 text-red-400">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        ) : history.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-gray-800/50 rounded-lg border border-gray-700">
-            <p className="text-xl mb-2">No shipping history found</p>
-            <p className="text-sm">Create a shipping label to see it here</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {history.map((item) => (
-              <motion.div
-                key={item.id}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={animations.listItem}
-                className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 transition-colors border border-gray-700"
-              >
-                <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="px-2 py-1 bg-blue-500/20 rounded text-blue-400 text-xs">
-                        {item.provider_name || item.provider || 'Unknown'}
-                      </div>
-                      <div className="px-2 py-1 bg-green-500/20 rounded text-green-400 text-xs">
-                        ${item.rate?.toFixed(2) || '0.00'}
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-white">
-                      To: {item.toName}
-                    </h3>
-                    <p className="text-gray-400">{item.toAddress}</p>
-                    <p className="text-gray-400">
-                      {item.toCity}, {item.toState} {item.toZip}
-                    </p>
-                    <div className="mt-2 text-sm text-gray-500 space-y-1">
-                      <p>From: {item.fromName}</p>
-                      <p>Tracking: {item.tracking_number || 'N/A'}</p>
-                      <p>Created: {formatDate(item.createdAt)}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-2 md:w-auto w-full">
-                    {item.label_url && (
-                      <button
-                        onClick={() => window.open(item.label_url, '_blank')}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                      >
-                        View Label
-                      </button>
-                    )}
-                    {item.tracking_url && (
-                      <button
-                        onClick={() => window.open(item.tracking_url, '_blank')}
-                        className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                      >
-                        Track Package
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
+      <div className="grid gap-6">
+        <AnimatePresence>
+          {labels.map((label) => (
+            <motion.div
+              key={label.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="glass-card p-6"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-1">
+                    {label.fromName} → {label.toName}
+                  </h3>
+                  <p className="text-white/60 text-sm">
+                    Created on {new Date(label.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleDownload(label.id)}
+                    className="button-secondary px-3 py-1"
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => handleDelete(label.id)}
+                    className="button-danger px-3 py-1"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-white/60">From</p>
+                  <p className="text-white/90">{label.fromAddress}</p>
+                  <p className="text-white/90">{label.fromCity}, {label.fromState} {label.fromZip}</p>
+                </div>
+                <div>
+                  <p className="text-white/60">To</p>
+                  <p className="text-white/90">{label.toAddress}</p>
+                  <p className="text-white/90">{label.toCity}, {label.toState} {label.toZip}</p>
+                </div>
+                <div>
+                  <p className="text-white/60">Package</p>
+                  <p className="text-white/90">{label.weight} lbs</p>
+                  <p className="text-white/90">{label.length}" × {label.width}" × {label.height}"</p>
+                </div>
+                <div>
+                  <p className="text-white/60">Status</p>
+                  <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    label.status === 'delivered' ? 'bg-green-500/20 text-green-400' :
+                    label.status === 'in_transit' ? 'bg-blue-500/20 text-blue-400' :
+                    'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {label.status.replace('_', ' ')}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 } 
