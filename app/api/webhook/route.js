@@ -5,14 +5,17 @@ import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { walletService } from '@/app/services/WalletService';
 import { analytics } from '@/lib/analytics';
 import { rateLimit } from '../rate-limit';
+import { mockService } from '@/app/services/MockService';
 
 // Initialize Stripe with proper error handling and retry configuration
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-  typescript: true,
-  maxNetworkRetries: 3,
-  timeout: 20000,
-});
+const stripe = process.env.NODE_ENV === 'production' && process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16',
+      typescript: true,
+      maxNetworkRetries: 3,
+      timeout: 20000,
+    })
+  : null;
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -104,12 +107,17 @@ export const POST = rateLimit(async function POST(request) {
   let event;
   
   try {
-    // Verify webhook signature
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      endpointSecret
-    );
+    // In production, verify webhook signature
+    if (process.env.NODE_ENV === 'production' && stripe && endpointSecret) {
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        endpointSecret
+      );
+    } else {
+      // In development/mock mode, parse the body directly
+      event = JSON.parse(body);
+    }
     
     console.log(`[${requestId}] Webhook signature verified for event: ${event.type}`);
   } catch (err) {
