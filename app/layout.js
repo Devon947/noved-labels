@@ -1,7 +1,7 @@
 import React from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '../components/ThemeProvider';
+import { ThemeProvider } from './contexts/ThemeContext';
 import AppDownloadBanner from './components/AppDownloadBanner';
 import AnalyticsWrapper from './components/AnalyticsWrapper';
 
