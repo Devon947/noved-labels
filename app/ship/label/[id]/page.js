@@ -1,7 +1,8 @@
-'use client';
+// Remove 'use client' and make this a server component that fetches data server-side
+// import { useState, useEffect } from 'react';
+// import { useParams, useRouter } from 'next/navigation';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,118 +14,37 @@ import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { Badge } from '@/components/ui/badge';
 import { calculatePlanComparison, PRICING } from '@/lib/pricing';
 
-export default function LabelPreviewPage() {
-  const params = useParams();
-  const router = useRouter();
-  const [labelData, setLabelData] = useState(null);
-  const [planComparison, setPlanComparison] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState({
-    type: 'success',
-    message: 'Label created successfully'
-  });
-
-  useEffect(() => {
-    async function fetchLabelData() {
-      try {
-        setLoading(true);
-        const historyItems = await shippingHistoryService.getHistory();
-        const label = historyItems.find(item => item.id === params.id);
-        
-        if (!label) {
-          throw new Error('Label not found');
-        }
-        
-        setLabelData(label);
-        
-        // Calculate plan comparison if on standard plan
-        if (label.plan === 'Standard') {
-          // Use base rate and estimate for 30 labels per month
-          const comparison = calculatePlanComparison(30, parseFloat(label.baseRate));
-          setPlanComparison(comparison);
-        }
-        
-        // Set status based on label data
-        if (label.status === 'error' || label.error) {
-          setStatus({
-            type: 'error',
-            message: label.error || 'There was an issue with this label'
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching label:', err);
-        setError('Unable to load shipping label. Please try again.');
-        setStatus({
-          type: 'error',
-          message: 'Failed to load label'
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchLabelData();
-  }, [params.id]);
-
-  const handlePrint = () => {
-    window.open(labelData.label_url, '_blank');
-  };
+// Make this async for server-side data fetching
+export default async function LabelPreviewPage({ params }) {
+  // Server-side data fetching instead of client-side
+  const labelData = await fetchLabelData(params.id);
   
-  const handleTrack = () => {
-    if (labelData.tracking_url) {
-      window.open(labelData.tracking_url, '_blank');
-    } else {
-      // Fallback to USPS tracking if specific URL not provided
-      window.open(`https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=${labelData.tracking_number}`, '_blank');
-    }
-  };
-  
-  const handleDownload = () => {
-    // Create an anchor element and trigger download
-    const link = document.createElement('a');
-    link.href = labelData.label_url;
-    link.download = `shipping-label-${labelData.tracking_number}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  
-  const handleCreateTicket = () => {
-    // Navigate to tickets page with pre-filled data for this label
-    router.push(`/support/tickets/new?type=shipping&reference=${labelData.id}&subject=Issue with Shipping Label ${labelData.tracking_number}`);
-  };
-  
-  const handleBackToShipping = () => {
-    router.push('/ship');
-  };
-  
-  const handleUpgradePlan = () => {
-    router.push('/pricing?from=label');
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto py-8 flex flex-col items-center justify-center min-h-[60vh]">
-        <RefreshCw className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">Loading shipping label...</p>
-      </div>
-    );
-  }
-
-  if (error || !labelData) {
+  // Handle errors
+  if (!labelData) {
     return (
       <div className="container mx-auto py-8">
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error || 'Label not found'}</AlertDescription>
+          <AlertDescription>Label not found</AlertDescription>
         </Alert>
-        <Button onClick={handleBackToShipping} variant="outline" className="flex items-center">
+        <Button onClick={() => redirect('/ship')} variant="outline" className="flex items-center">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Shipping
         </Button>
       </div>
     );
   }
+  
+  // Calculate plan comparison for Standard plan
+  let planComparison = null;
+  if (labelData.plan === 'Standard') {
+    // Use base rate and estimate for 30 labels per month
+    planComparison = calculatePlanComparison(30, parseFloat(labelData.baseRate));
+  }
+  
+  // Determine status based on label data
+  const status = labelData.status === 'error' || labelData.error
+    ? { type: 'error', message: labelData.error || 'There was an issue with this label' }
+    : { type: 'success', message: 'Label created successfully' };
 
   return (
     <div className="container mx-auto py-8">
@@ -162,18 +82,33 @@ export default function LabelPreviewPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-wrap gap-2">
-              <Button onClick={handlePrint} className="flex items-center bg-blue-600 hover:bg-blue-700">
-                <Printer className="h-4 w-4 mr-2" /> Print Label
-              </Button>
-              <Button onClick={handleDownload} variant="secondary" className="flex items-center">
-                <Download className="h-4 w-4 mr-2" /> Download
-              </Button>
-              <Button onClick={handleTrack} variant="outline" className="flex items-center">
-                <ExternalLink className="h-4 w-4 mr-2" /> Track Package
-              </Button>
-              <Button onClick={handleCreateTicket} variant="outline" className="flex items-center">
-                <Ticket className="h-4 w-4 mr-2" /> Create Ticket
-              </Button>
+              <form action="/api/printLabel" method="post">
+                <input type="hidden" name="labelUrl" value={labelData.label_url} />
+                <Button type="submit" className="flex items-center bg-blue-600 hover:bg-blue-700">
+                  <Printer className="h-4 w-4 mr-2" /> Print Label
+                </Button>
+              </form>
+              <form action="/api/downloadLabel" method="post">
+                <input type="hidden" name="labelUrl" value={labelData.label_url} />
+                <input type="hidden" name="trackingNumber" value={labelData.tracking_number} />
+                <Button type="submit" variant="secondary" className="flex items-center">
+                  <Download className="h-4 w-4 mr-2" /> Download
+                </Button>
+              </form>
+              <form action="/api/trackPackage" method="post">
+                <input type="hidden" name="trackingUrl" value={labelData.tracking_url || `https://tools.usps.com/go/TrackConfirmAction_input?qtc_tLabels1=${labelData.tracking_number}`} />
+                <Button type="submit" variant="outline" className="flex items-center">
+                  <ExternalLink className="h-4 w-4 mr-2" /> Track Package
+                </Button>
+              </form>
+              <form action="/support/tickets/new" method="get">
+                <input type="hidden" name="type" value="shipping" />
+                <input type="hidden" name="reference" value={labelData.id} />
+                <input type="hidden" name="subject" value={`Issue with Shipping Label ${labelData.tracking_number}`} />
+                <Button type="submit" variant="outline" className="flex items-center">
+                  <Ticket className="h-4 w-4 mr-2" /> Create Ticket
+                </Button>
+              </form>
             </CardFooter>
           </Card>
         </div>
@@ -255,33 +190,54 @@ export default function LabelPreviewPage() {
                   <p className="text-sm text-blue-700 mt-1">
                     Upgrade to Premium and save ${planComparison.savings} per month with your shipping volume.
                   </p>
-                  <Button 
-                    onClick={handleUpgradePlan}
-                    className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
-                    size="sm"
-                  >
-                    Upgrade Now - $99/month
-                  </Button>
+                  <form action="/pricing" method="get">
+                    <input type="hidden" name="from" value="label" />
+                    <Button 
+                      type="submit"
+                      className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
+                      size="sm"
+                    >
+                      Upgrade Now - $99/month
+                    </Button>
+                  </form>
                 </div>
               )}
               
-              <Button 
-                onClick={handleCreateTicket}
-                variant="outline"
-                className="w-full flex items-center justify-center"
-              >
-                <Ticket className="h-4 w-4 mr-2" /> Report Issue
-              </Button>
+              <form action="/support/tickets/new" method="get">
+                <input type="hidden" name="type" value="shipping" />
+                <input type="hidden" name="reference" value={labelData.id} />
+                <input type="hidden" name="subject" value={`Issue with Shipping Label ${labelData.tracking_number}`} />
+                <Button 
+                  type="submit"
+                  variant="outline"
+                  className="w-full flex items-center justify-center"
+                >
+                  <Ticket className="h-4 w-4 mr-2" /> Report Issue
+                </Button>
+              </form>
             </CardFooter>
           </Card>
           
           <div className="mt-6">
-            <Button onClick={handleBackToShipping} variant="outline" className="w-full flex items-center justify-center">
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Shipping
-            </Button>
+            <form action="/ship" method="get">
+              <Button type="submit" variant="outline" className="w-full flex items-center justify-center">
+                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Shipping
+              </Button>
+            </form>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Helper function to fetch label data
+async function fetchLabelData(id) {
+  try {
+    const historyItems = await shippingHistoryService.getHistory();
+    return historyItems.find(item => item.id === id) || null;
+  } catch (err) {
+    console.error('Error fetching label:', err);
+    return null;
+  }
 } 
