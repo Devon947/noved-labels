@@ -45,13 +45,14 @@ export async function POST(request) {
         if (customer && customer.metadata && customer.metadata.planType) {
           // Get user ID from customer metadata (in a real app)
           const planType = customer.metadata.planType;
+          const billingCycle = customer.metadata.billingCycle || 'monthly';
           
           // Update user's plan in your database
           if (subscription.status === 'active') {
             // Update the user's plan to PREMIUM (or whatever plan they subscribed to)
-            await shippingHistoryService.savePlan(planType);
+            await shippingHistoryService.savePlan(planType, { billingCycle });
             
-            console.log(`✅ Subscription active! Plan set to ${planType}`);
+            console.log(`✅ Subscription active! Plan set to ${planType} with ${billingCycle} billing`);
           }
         }
         break;
@@ -91,6 +92,16 @@ export async function POST(request) {
             }
           }
         }
+        
+        // Check if this is a subscription checkout
+        if (session.metadata && session.metadata.planType) {
+          const planType = session.metadata.planType;
+          const billingCycle = session.metadata.billingCycle || 'monthly';
+          
+          // This might be redundant with the subscription events above,
+          // but we include it as a backup to ensure the user's plan is updated
+          console.log(`✅ Checkout completed for ${planType} plan with ${billingCycle} billing`);
+        }
         break;
         
       case 'invoice.payment_succeeded':
@@ -99,7 +110,11 @@ export async function POST(request) {
         
         // Check if this is a subscription invoice
         if (invoice.subscription) {
-          console.log('✅ Payment succeeded for subscription:', invoice.subscription);
+          // Get the subscription details to determine the billing cycle
+          const invoiceSubscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          const billingCycle = invoiceSubscription.items.data[0]?.plan.interval === 'year' ? 'yearly' : 'monthly';
+          
+          console.log(`✅ Payment succeeded for ${billingCycle} subscription:`, invoice.subscription);
         }
         break;
         

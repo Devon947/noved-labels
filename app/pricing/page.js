@@ -10,6 +10,8 @@ import { Slider } from '@/components/ui/slider';
 import LoginCheck from '../components/LoginCheck';
 import { shippingHistoryService } from '@/app/services/ShippingHistoryService';
 import { PRICING, calculatePlanComparison } from '@/lib/pricing';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function PricingPage() {
   const [labelCount, setLabelCount] = useState(30);
   const [averageRate, setAverageRate] = useState(8.00);
   const [calculatedComparison, setCalculatedComparison] = useState(null);
+  const [billingCycle, setBillingCycle] = useState('monthly');
   
   useEffect(() => {
     async function loadUserData() {
@@ -45,12 +48,13 @@ export default function PricingPage() {
     const checkoutStatus = searchParams.get('checkout');
     if (checkoutStatus === 'success') {
       const plan = searchParams.get('plan');
+      const cycle = searchParams.get('cycle');
       if (plan) {
         // Update the local state
         setUserPlan(plan);
         
         // Show success message
-        alert(`Successfully upgraded to ${plan} plan!`);
+        alert(`Successfully upgraded to ${plan} plan with ${cycle || 'monthly'} billing!`);
         
         // Remove the query params
         router.replace('/pricing');
@@ -82,6 +86,7 @@ export default function PricingPage() {
         },
         body: JSON.stringify({
           planType: 'PREMIUM',
+          billingCycle: billingCycle,
           origin: window.location.origin,
         }),
       });
@@ -139,6 +144,9 @@ export default function PricingPage() {
       setAverageRate(value);
     }
   };
+
+  // Calculate yearly price with 2 months free
+  const yearlyPrice = PRICING.PREMIUM.MONTHLY_FEE * 10; // 12 months - 2 months free = 10 months
 
   return (
     <LoginCheck>
@@ -223,30 +231,31 @@ export default function PricingPage() {
                 </div>
               </div>
               
-              <div className="bg-gray-900/50 rounded-lg p-6">
-                <h3 className="text-xl font-bold text-white mb-4">Monthly Cost Comparison</h3>
-                
-                {calculatedComparison && (
+              <div className="bg-gray-700/50 rounded-lg p-6">
+                {loading ? (
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className="h-8 w-28 bg-gray-600 rounded mb-4"></div>
+                    <div className="h-4 w-40 bg-gray-600 rounded"></div>
+                  </div>
+                ) : (
                   <>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-gray-300">Standard Plan</span>
-                          <span className="text-white font-medium">${calculatedComparison.standardCost}</span>
-                        </div>
-                        <div className="w-full bg-gray-700 h-3 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full" style={{ width: `${Math.min(100, (parseFloat(calculatedComparison.standardCost) / Math.max(parseFloat(calculatedComparison.standardCost), parseFloat(calculatedComparison.premiumCost))) * 100)}%` }}></div>
-                        </div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Cost Comparison</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gray-800 p-3 rounded-lg">
+                        <p className="text-sm text-gray-400">Standard Plan</p>
+                        <p className="text-xl font-bold text-white">${calculatedComparison.standardCost}</p>
+                        <p className="text-xs text-gray-500">per month</p>
                       </div>
                       
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-gray-300">Premium Plan</span>
-                          <span className="text-white font-medium">${calculatedComparison.premiumCost}</span>
-                        </div>
-                        <div className="w-full bg-gray-700 h-3 rounded-full overflow-hidden">
-                          <div className="bg-purple-500 h-full" style={{ width: `${Math.min(100, (parseFloat(calculatedComparison.premiumCost) / Math.max(parseFloat(calculatedComparison.standardCost), parseFloat(calculatedComparison.premiumCost))) * 100)}%` }}></div>
-                        </div>
+                      <div className="bg-gray-800 p-3 rounded-lg relative">
+                        <p className="text-sm text-gray-400">Premium Plan</p>
+                        <p className="text-xl font-bold text-white">${calculatedComparison.premiumCost}</p>
+                        <p className="text-xs text-gray-500">per month</p>
+                        
+                        {calculatedComparison.isSavingWithPremium && (
+                          <Badge className="absolute -top-2 -right-2 bg-green-600 text-white">Better Value</Badge>
+                        )}
                       </div>
                     </div>
                     
@@ -403,18 +412,47 @@ export default function PricingPage() {
                   <Shield className="h-8 w-8 text-purple-400" />
                 </div>
                 
-                <div className="mt-6">
-                  <p className="text-gray-400">Label Fee</p>
-                  <div className="flex items-end">
-                    <span className="text-4xl font-bold text-white">${PRICING.PREMIUM.MARKUP_PER_LABEL.toFixed(2)}</span>
-                    <span className="text-gray-400 ml-2 mb-1">per label</span>
-                  </div>
-                  <p className="text-gray-400 mt-1">Plus carrier rates</p>
-                </div>
-                
-                <div className="mt-6">
-                  <p className="text-gray-400">Monthly Fee</p>
-                  <p className="text-2xl font-bold text-white">${PRICING.PREMIUM.MONTHLY_FEE.toFixed(2)}</p>
+                <div className="mt-4">
+                  <Tabs defaultValue="monthly" onValueChange={setBillingCycle} className="w-full">
+                    <TabsList className="w-full grid grid-cols-2">
+                      <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                      <TabsTrigger value="yearly">Yearly (Save 16.7%)</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="monthly" className="mt-4">
+                      <div>
+                        <p className="text-gray-400">Label Fee</p>
+                        <div className="flex items-end">
+                          <span className="text-4xl font-bold text-white">${PRICING.PREMIUM.MARKUP_PER_LABEL.toFixed(2)}</span>
+                          <span className="text-gray-400 ml-2 mb-1">per label</span>
+                        </div>
+                        <p className="text-gray-400 mt-1">Plus carrier rates</p>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <p className="text-gray-400">Monthly Fee</p>
+                        <p className="text-2xl font-bold text-white">${PRICING.PREMIUM.MONTHLY_FEE.toFixed(2)}</p>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="yearly" className="mt-4">
+                      <div>
+                        <p className="text-gray-400">Label Fee</p>
+                        <div className="flex items-end">
+                          <span className="text-4xl font-bold text-white">${PRICING.PREMIUM.MARKUP_PER_LABEL.toFixed(2)}</span>
+                          <span className="text-gray-400 ml-2 mb-1">per label</span>
+                        </div>
+                        <p className="text-gray-400 mt-1">Plus carrier rates</p>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <p className="text-gray-400">Yearly Fee (2 months free)</p>
+                        <div className="flex items-center">
+                          <p className="text-2xl font-bold text-white">${yearlyPrice.toFixed(2)}</p>
+                          <span className="ml-2 line-through text-gray-500 text-sm">${(PRICING.PREMIUM.MONTHLY_FEE * 12).toFixed(2)}</span>
+                        </div>
+                        <p className="text-green-400 text-sm mt-1">Save ${(PRICING.PREMIUM.MONTHLY_FEE * 2).toFixed(2)}</p>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
                 
                 <div className="mt-6 p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
@@ -447,11 +485,15 @@ export default function PricingPage() {
                 <ul className="space-y-3">
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300">Everything in Standard plan</span>
+                    <span className="text-gray-300">Multi-carrier shipping options</span>
                   </li>
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300">Save $1.00 on every label</span>
+                    <span className="text-gray-300">Address validation</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-300">Tracking notifications</span>
                   </li>
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
@@ -463,7 +505,11 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-300">API access</span>
+                    <span className="text-gray-300">API access for integrations</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check className="h-5 w-5 text-purple-400 mr-2 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-300">Advanced analytics</span>
                   </li>
                 </ul>
               </div>
